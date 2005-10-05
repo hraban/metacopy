@@ -1,0 +1,12 @@
+;;; -*- Mode: Lisp; package: CL-USER; Syntax: Common-lisp; Base: 10 -*-
+
+(in-package common-lisp-user)
+
+(eksl-define-logical-pathname-translations (metabang.copy)
+  (source))
+
+(define-eksl-system metabang.copy
+  ((("cl-copy")))
+  :base-dir "metabang.copy:source;"
+  :bin-identifiers (:platform :vendor)
+  :depends-on (:metatilities :moptilities))
