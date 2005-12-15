@@ -454,7 +454,7 @@ duplicate-class-forms-final-duplicate
    class-name
    (lambda (gf m)
      (declare (ignorable gf m))
-     (find (mopu:mopu-generic-function-name gf)
+     (find (generic-function-name gf)
            *potential-duplicator-methods*))
    :verbose? nil))
 
@@ -472,11 +472,11 @@ duplicate-class-forms-final-duplicate
       (assert (null copy))
       (assert (null set))
       (assert (null set-all))
-      (setf copy (mopu:mopu-class-slot-names class)))
+      (setf copy (slot-names class)))
     (when set-all
       (assert (null copy))
       (assert (null set))
-      (setf set (mopu:mopu-class-slot-names class)
+      (setf set (slot-names class)
             set-all nil))
     
     (setf set-slots (loop for slot in (ensure-list set) collect
@@ -492,7 +492,7 @@ duplicate-class-forms-final-duplicate
          (copy-object object))
        (duplicator-methods 
         (,class)
-        ,(mopu:mopu-class-slot-names class)
+        ,(slot-names class)
         (,@(when copy-slots
              `((duplicate-slots ,@copy-slots)))
          ,@(when set-slots
@@ -557,9 +557,9 @@ duplicate-class-forms-final-duplicate
    (loop 
      with result = nil 
      for (nil name nil initargs) in (mapcar (lambda (slot-value)
-                                              (mopu-class-slot-information 
+                                              (slot-properties 
                                                object slot-value))
-                                            (mopu-class-slot-names object)) do
+                                            (slot-names object)) do
      (when initargs
        (setf result (nconc result 
                            (list (if (listp initargs)
@@ -574,9 +574,9 @@ duplicate-class-forms-final-duplicate
    (loop 
      with result = nil 
      for (nil name nil initargs) in (mapcar (lambda (slot-value)
-                                              (mopu-class-slot-information 
+                                              (slot-properties  
                                                object slot-value))
-                                            (mopu-class-slot-names object)) do
+                                            (slot-names object)) do
      (when initargs
        (setf result (nconc result 
                            (list (if (listp initargs)
