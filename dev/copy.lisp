@@ -1,56 +1,6 @@
-;;; -*- Syntax: Common-lisp; Package: cl-copy -*-
+;;; -*- Syntax: Common-lisp; Package: metacopy -*-
 
-#|
-Copyright (c) 1987-1993 by BBN Systems and Technologies,
-A Division of Bolt, Beranek and Newman Inc.
-All rights reserved.
-
-Permission to use, copy, modify and distribute this software and its
-documentation is hereby granted without fee, provided that the above
-copyright notice of BBN Systems and Technologies, this paragraph and the
-one following appear in all copies and in supporting documentation, and
-that the name Bolt Beranek and Newman Inc. not be used in advertising or
-publicity pertaining to distribution of the software without specific,
-written prior permission. Any distribution of this software or derivative
-works must comply with all applicable United States export control laws.
-
-BBN makes no representation about the suitability of this software for any
-purposes.  It is provided "AS IS", without express or implied warranties
-including (but not limited to) all implied warranties of merchantability
-and fitness for a particular purpose, and notwithstanding any other
-provision contained herein.  In no event shall BBN be liable for any
-special, indirect or consequential damages whatsoever resulting from loss
-of use, data or profits, whether in an action of contract, negligence or
-other tortuous action, arising out of or in connection with the use or
-performance of this software, even if BBN Systems and Technologies is
-advised of the possiblity of such damages.
-|#
-
-(defpackage "CL-COPY"
-  (:use "COMMON-LISP" "MOPTILITIES" "METATILITIES")
-  (:export
-   #:with-stack-list-copy 
-   #:with-slot-copying
-   #:copy-slot
-   #:copy-set-slot
-   #:copy-slots
-   #:copy-cond-slot
-   #:copyable-mixin
-   #:copy-inner-class 
-   #:instance-made-for-copying-p
-   #:copy-self copy-inner
-   #:copy-top-level copy-one
-   #:copy-slots-slots-to-initialize
-   #:defcopy-methods
-   #:*copy-assume-no-circular-lists*
-   #:copy-template
-   #:make-instance-from-object-initargs
-   #:duplicate-set
-   #:duplicate-slots
-   #:duplicator-methods
-   #:duplicate-cond-slots
-   #:cl-copy))
-(in-package cl-copy)
+(in-package metacopy)
 
 ;;; ---------------------------------------------------------------------------
 
@@ -58,35 +8,15 @@ advised of the possiblity of such damages.
 
 ;;; ---------------------------------------------------------------------------
 
-(defgeneric copy-top-level (thing)
-  (:documentation "Copy objects with aribtrarily complex substructure.
-Objects are kept track of in a HashTable, so only one copy is made of each.
-Things which are EQ in the original (i.e. objects, sublists, etc.) come out
-EQ in the corresponding places in the copy."))
+(defmethod copy-thing (original-thing) 
+  (copy-one original-thing (make-hash-table)))
 
-;;; ---------------------------------------------------------------------------
-
-(defmethod copy-top-level (ORIGINAL-THING) 
-  (copy-one ORIGINAL-THING (make-hash-table)))
-
-#+second-try
-(defvar *ctl-copy-hash-table* (make-hash-table))
-
-#+second-try
-(defmethod copy-top-level (ORIGINAL-THING)
-    (clrhash *ctl-copy-hash-table*)
-    (copy-one ORIGINAL-THING *ctl-copy-hash-table*))  
-  
-#+original
 (let ((copy-htable (make-hash-table)))
-  (defmethod copy-top-level (ORIGINAL-THING)
-    (clrhash COPY-HTABLE)
-    (copy-one ORIGINAL-THING COPY-HTABLE)))
+  (defmethod copy-thing (original-thing)
+    (clrhash copy-htable)
+    (copy-one original-thing copy-htable)))
 
-;;; ---------------------------------------------------------------------------
 
-(defgeneric copy-one (SELF COPY-HTABLE)
-  (:documentation "Returns a fullfledged copy of SELF, set-up and ready to go."))
 
 
 ;;;********************************************************************************
@@ -95,43 +25,43 @@ EQ in the corresponding places in the copy."))
 ;;; internal structure.  -->  So just use the objects use themselves.
 ;;; (I.e. no need to worry about caching them).
 ;;;
-;;; Gary King 2003-04-01: for speed, we do this for copy-one _and_ copy-top-level
+;;; Gary King 2003-04-01: for speed, we do this for copy-one _and_ copy-thing
 ;;;
 ;;;********************************************************************************
 
-(defmethod copy-top-level ((ORIGINAL-THING symbol))
+(defmethod copy-thing ((original-thing symbol))
   original-thing)
 
-(defmethod copy-one ((ORIGINAL-SYMBOL symbol) COPY-HTABLE)
-  (declare (ignore COPY-HTABLE))
-  ORIGINAL-SYMBOL)
+(defmethod copy-one ((original-symbol symbol) copy-htable)
+  (declare (ignore copy-htable))
+  original-symbol)
 
-(defmethod copy-top-level ((ORIGINAL-THING number))
+(defmethod copy-thing ((original-thing number))
   original-thing)
 
-(defmethod copy-one ((ORIGINAL-NUMBER number) COPY-HTABLE)
-  (declare (ignore COPY-HTABLE))
-  ORIGINAL-NUMBER)
+(defmethod copy-one ((original-number number) copy-htable)
+  (declare (ignore copy-htable))
+  original-number)
 
-(defmethod copy-top-level ((ORIGINAL-THING function))
+(defmethod copy-thing ((original-thing function))
   original-thing)
 
-(defmethod copy-one ((ORIGINAL-FUNCTION function) COPY-HTABLE)
-  (declare (ignore COPY-HTABLE))
-  ORIGINAL-FUNCTION)
+(defmethod copy-one ((original-function function) copy-htable)
+  (declare (ignore copy-htable))
+  original-function)
 
-(defmethod copy-top-level ((ORIGINAL-THING character))
+(defmethod copy-thing ((original-thing character))
   original-thing)
 
 (defmethod copy-one ((orig character) copy-htable)
   (declare (ignore copy-htable))
   orig)
 
-#+MCL-WHEN-YOU-WANT-TO-KNOW
-(defmethod copy-one ((ORIGINAL-FUNCTION ccl::compiled-lexical-closure) COPY-HTABLE)
-  (declare (ignore COPY-HTABLE))
-  (warn "Copying ~A" ORIGINAL-FUNCTION)
-  ORIGINAL-FUNCTION)
+#+mcl-when-you-want-to-know
+(defmethod copy-one ((original-function ccl::compiled-lexical-closure) copy-htable)
+  (declare (ignore copy-htable))
+  (warn "copying ~a" original-function)
+  original-function)
 
 ;;;********************************************************************************
 ;;; The hairier, default case. 
@@ -145,31 +75,19 @@ EQ in the corresponding places in the copy."))
 ;;; Object has the same "eq-connectedness" that the original had.
 ;;;********************************************************************************
 
-(defgeneric copy-self (SELF)
-  (:documentation "Return a new, empty version of SELF"))
-
-(defgeneric copy-inner (SELF COPY-OBJECT COPY-HTABLE)
-  (:documentation
-    "Copy the relevant portions of SELF into COPY-OBJECT.
-     OK if it calls COPY on sub-objects."))
-
-(defgeneric copy-final (SELF COPY)
-  (:documentation "Last pass to make sure everything is in place."))
-
-;;; ---------------------------------------------------------------------------
 
 ;;; So, in short there are three steps (if I've not already been Copied):
 ;;;  1] Create a new, empty copy  (using COPY-SELF).
 ;;;  2] Shove it in the HashTable.
 ;;;  3] Setup its internal structure, as needed (using COPY-INNER).
-(defmethod copy-one (ORIGINAL-THING COPY-HTABLE)
-  (multiple-value-bind (VALUE FOUND?) (gethash ORIGINAL-THING COPY-HTABLE)
-    (or (and FOUND? VALUE)
-	(let ((COPY-THING (copy-self ORIGINAL-THING)))
-          (setf (gethash ORIGINAL-THING COPY-HTABLE) COPY-THING)
-	  (copy-inner ORIGINAL-THING COPY-THING COPY-HTABLE)
-	  (copy-final ORIGINAL-THING COPY-THING)
-	  COPY-THING))))
+(defmethod copy-one (original-thing copy-htable)
+  (multiple-value-bind (value found?) (gethash original-thing copy-htable)
+    (or (and found? value)
+	(let ((copy-thing (copy-self original-thing)))
+          (setf (gethash original-thing copy-htable) copy-thing)
+	  (copy-inner original-thing copy-thing copy-htable)
+	  (copy-final original-thing copy-thing)
+	  copy-thing))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -182,13 +100,17 @@ EQ in the corresponding places in the copy."))
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod copy-self (SELF)
-  (error "Don't know how to copy ~S" self))
+(defmethod copy-self (self)
+  (error "don't know how to copy ~s" self))
 
-(defmethod copy-inner (SELF COPY-OBJECT COPY-HTABLE)
-  "Default is to do nothing."
-  (declare (ignore SELF COPY-OBJECT COPY-HTABLE))
+;;; ---------------------------------------------------------------------------
+
+(defmethod copy-inner (self copy-object copy-htable)
+  "default is to do nothing."
+  (declare (ignore self copy-object copy-htable))
   nil)
+
+;;; ---------------------------------------------------------------------------
 
 (defmethod copy-final ((self t) (copy t))
   "Default is to do nothing."
@@ -197,15 +119,15 @@ EQ in the corresponding places in the copy."))
 ;;; ---------------------------------------------------------------------------
 ;;; Strings
 
-(defmethod copy-self ((ORIGINAL string))
-  (subseq ORIGINAL 0 (length ORIGINAL)))
+(defmethod copy-self ((original string))
+  (subseq original 0 (length original)))
 
-;; Define this so that array code below does not run for strings.
-(defmethod copy-inner ((ORIGINAL string) new-array copy-htable)
+;; define this so that array code below does not run for strings.
+(defmethod copy-inner ((original string) new-array copy-htable)
   (declare (ignore new-array copy-htable)))
 
 ;;; ---------------------------------------------------------------------------
-;;; Arrays
+;;; arrays
 
 (defmethod copy-self ((original array))
   (let* ((array-dimensions (array-dimensions original))
@@ -224,7 +146,7 @@ EQ in the corresponding places in the copy."))
               (copy-one (row-major-aref original index) copy-htable))))
 
 ;;; ---------------------------------------------------------------------------
-;;; Hash Tables
+;;; hash tables
 
 (defmethod copy-self ((original hash-table))
   (make-hash-table :test (hash-table-test original)))
@@ -240,12 +162,10 @@ EQ in the corresponding places in the copy."))
 ;;;********************************************************************************
 ;;; Lists
 ;;;********************************************************************************
-;;; The Old, Boring, Common-Lisp compatible Way.
-#-lispm
-(defmethod copy-self ((ORIGINAL-LIST list))
-  (and ORIGINAL-LIST (cons nil nil)))
 
-#-lispm
+(defmethod copy-self ((original-list list))
+  (and original-list (cons nil nil)))
+
 (defmethod copy-inner ((original-list list) copy-list copy-htable)
   ;; this handles circular lists, but is slower and isn't cdr coded.
   (cond ((not (null *copy-assume-no-circular-lists*))
@@ -261,81 +181,59 @@ EQ in the corresponding places in the copy."))
            (setf (cdr copy-list) (copy-one (cdr original-list) copy-htable))))))
 
 ;;;********************************************************************************
-;;; Copy-able Class objects.
+;;; copy-able class objects.
 ;;;********************************************************************************
 
 
-(defclass copyable-mixin
-	  ()
+(defclass copyable-mixin ()
     ()
   (:documentation
-    "Provides method for doing COPY that creates a copy on an object.
-     Each mixin should provide an COPY-INNER-CLASS method to copy its
+    "provides method for doing copy that creates a copy on an object.
+     each mixin should provide an copy-inner-class method to copy its
      slots appropriately."))
 
 (defvar *instance-for-copy?* nil)
 
-(defgeneric copy-slots-slots-to-initialize (self)
-  (:method-combination append :most-specific-last)
-  (:method  append ((self standard-object))
-            (values nil)))
-
-(defmethod copy-self ((SELF copyable-mixin))
+(defmethod copy-self ((self copyable-mixin))
   (copy-object self))
 
 (defun copy-object (self)
-  (let ((i (allocate-instance (class-of SELF))))
+  (let ((i (allocate-instance (class-of self))))
     (let ((*instance-for-copy?* i))
       (shared-initialize i (copy-slots-slots-to-initialize self)))))
 
 (defmethod instance-made-for-copying-p ((object t))
   (eq object *instance-for-copy?*))
 
-(defgeneric copy-inner-class (SELF COPY-OBJECT COPY-HTABLE)
-  (:method-combination progn :most-specific-last)
-  (:documentation
-    "Defined for each component class of an object with mixin COPYABLE-MIXIN.
-     It should setup its slots as appropriate.
-     This needs to be a seperate method (from COPY-INNER) because it has
-     to be done with a PROGN Method-Combination."))
-
-(defmethod copy-inner-class progn ((ORIGINAL-OBJECT copyable-mixin) COPY-LIST COPY-HTABLE)
-  (declare (ignore COPY-LIST COPY-HTABLE))
+(defmethod copy-inner-class progn ((original-object copyable-mixin) copy-list copy-htable)
+  (declare (ignore copy-list copy-htable))
   nil)
 
-(defmethod copy-inner ((ORIGINAL-OBJECT standard-object) COPY-LIST COPY-HTABLE)
-  (copy-inner-class ORIGINAL-OBJECT COPY-LIST COPY-HTABLE))
+(defmethod copy-inner ((original-object standard-object) copy-list copy-htable)
+  (copy-inner-class original-object copy-list copy-htable))
 
-(defgeneric copy-final-class (SELF COPY)
-  (:method-combination progn)
-  (:documentation
-    "Defined for each component class of an object with mixin COPYABLE-MIXIN.
-     It should setup its slots as appropriate.
-     This needs to be a seperate method (from COPY-FINAL) because it has
-     to be done with a PROGN Method-Combination."))
-
-(defmethod copy-final-class progn ((ORIGINAL-OBJECT copyable-mixin) (copy t))
+(defmethod copy-final-class progn ((original-object copyable-mixin) (copy t))
   nil)
 
-(defmethod copy-final ((ORIGINAL-OBJECT copyable-mixin) (copy t))
-  (copy-final-class ORIGINAL-OBJECT copy))
+(defmethod copy-final ((original-object copyable-mixin) (copy t))
+  (copy-final-class original-object copy))
 
 ;;;********************************************************************************
 ;;; Things to make using COPY-INNER-CLASS easier.
 ;;;********************************************************************************
 
-(defun copy-set-slot-1 (COPY-OBJECT SLOT-NAME VALUE)
-  (setf (slot-value COPY-OBJECT SLOT-NAME)
-	 VALUE))
+(defun copy-set-slot-1 (copy-object slot-name value)
+  (setf (slot-value copy-object slot-name)
+	 value))
 
 ;; Maybe make this deal with unbound slots - could just ignore them which would make
 ;; the slot unbound in the copy as well. - Westy
 ;; added the slot-boundp check, GWK 20011022
-(defun copy-slot-1 (COPY-OBJECT SLOT-NAME ORIGINAL-OBJECT COPY-HTABLE)
-  (when (slot-boundp ORIGINAL-OBJECT SLOT-NAME)
-    (copy-set-slot-1 COPY-OBJECT SLOT-NAME
-                     (copy-one (slot-value ORIGINAL-OBJECT SLOT-NAME)
-                               COPY-HTABLE))))
+(defun copy-slot-1 (copy-object slot-name original-object copy-htable)
+  (when (slot-boundp original-object slot-name)
+    (copy-set-slot-1 copy-object slot-name
+                     (copy-one (slot-value original-object slot-name)
+                               copy-htable))))
 
 ;;; (copy-set-slot (SLOT-NAME VALUE)
 ;;;   Set the contents of SLOT-NAME in COPY-OBJECT to VALUE.
@@ -343,92 +241,85 @@ EQ in the corresponding places in the copy."))
 ;;;   Set the contents of SLOT-NAME in COPY-OBJECT to be a copyicate of the
 ;;;   contents of the same slot in ORIGINAL-OBJECT.
 (defmacro with-slot-copying
-	  ((COPY-OBJECT COPY-HTABLE &optional (ORIGINAL-OBJECT 'SELF)) &body BODY)
-  `(macrolet ((copy-slot (SLOT-NAME)
-		`(copy-slot-1 ,',COPY-OBJECT ',SLOT-NAME ,',ORIGINAL-OBJECT ,',COPY-HTABLE))
-              (copy-cond-slot (SLOT-NAME TEST-FORM)
+	  ((copy-object copy-htable &optional (original-object 'self)) &body body)
+  `(macrolet ((copy-slot (slot-name)
+		`(copy-slot-1 ,',copy-object ',slot-name ,',original-object ,',copy-htable))
+              (copy-cond-slot (slot-name test-form)
 		`(when ,test-form
-                   (copy-slot-1 ,',COPY-OBJECT ',SLOT-NAME ,',ORIGINAL-OBJECT ,',COPY-HTABLE)))
-	      (copy-set-slot (SLOT-NAME VALUE)
-		`(copy-set-slot-1 ,',COPY-OBJECT ',SLOT-NAME ,VALUE)))
-     (macrolet ((copy-slots (&rest SLOT-NAMES)
+                   (copy-slot-1 ,',copy-object ',slot-name ,',original-object ,',copy-htable)))
+	      (copy-set-slot (slot-name value)
+		`(copy-set-slot-1 ,',copy-object ',slot-name ,value)))
+     (macrolet ((copy-slots (&rest slot-names)
 		  `(progn
-		     ,@(loop for SLOT-NAME in SLOT-NAMES
-			     collecting `(copy-slot ,SLOT-NAME)))))
-       ,@BODY)))
+		     ,@(loop for slot-name in slot-names
+			     collecting `(copy-slot ,slot-name)))))
+       ,@body)))
 
-;;;
-;;;
-;;;
-(defmacro WITH-STACK-LIST-COPY ((variable list) &body body)
-  "Like `((let ((,variable (copy-list ,list))) ,@body) 
-   except that the copy is consed on the stack."
-  `(let ((,variable (copy-list ,list))) ,@body))
 
 ;;; ***************************************************************************
 ;;; DUPLICATE
 
-(defun duplicate-class-forms-copy (SYMBOL CLASS-NAME ALL-SLOTS SLOT-FORMS)
-  (let ((WITH-SLOTS-SLOTS nil)
-        (COPIED-SLOTS nil))
-    (let ((SLOTS-FORMS (loop for (FORM-KIND FIRST-FORM . RST) in SLOT-FORMS
-			     collecting (case FORM-KIND
+(defun duplicate-class-forms-copy (symbol class-name all-slots slot-forms)
+  (let ((with-slots-slots nil)
+        (copied-slots nil))
+    (let ((slots-forms (loop for (form-kind first-form . rst) in slot-forms
+			     collecting (case form-kind
 					  (duplicate-set
-                                           (push FIRST-FORM WITH-SLOTS-SLOTS)
-                                           (push FIRST-FORM COPIED-SLOTS)
-                                           `(copy-set-slot ,FIRST-FORM ,@RST))
+                                           (push first-form with-slots-slots)
+                                           (push first-form copied-slots)
+                                           `(copy-set-slot ,first-form ,@rst))
 					  (duplicate-slots
-                                           (push FIRST-FORM COPIED-SLOTS)
-                                           (setf COPIED-SLOTS (append RST COPIED-SLOTS))
-                                           `(copy-slots ,FIRST-FORM ,@RST))
+                                           (push first-form copied-slots)
+                                           (setf copied-slots (append rst copied-slots))
+                                           `(copy-slots ,first-form ,@rst))
                                           (duplicate-cond-slots
-                                           (push FIRST-FORM COPIED-SLOTS)
-					    `(copy-cond-slot ,FIRST-FORM ,@RST))
+                                           (push first-form copied-slots)
+					    `(copy-cond-slot ,first-form ,@rst))
 					  (otherwise
-					    (error "Unknown DUPLICATE Form-kind: ~S"
-						   FORM-KIND))))))
+					    (error "unknown duplicate form-kind: ~s"
+						   form-kind))))))
       `(progn
-         ,@(let ((it (set-difference ALL-SLOTS COPIED-SLOTS)))
+         ,@(let ((it (set-difference all-slots copied-slots)))
              (when it
-               `((defmethod copy-slots-slots-to-initialize append ((,SYMBOL ,CLASS-NAME))
+               `((defmethod copy-slots-slots-to-initialize append ((,symbol ,class-name))
                    '(,@it)))))
-         (defmethod copy-inner-class progn ((,SYMBOL ,CLASS-NAME)
-					    ..COPY-OBJECT.. ..COPY-HTABLE..)
-           (declare (ignorable ..COPY-OBJECT.. ..COPY-HTABLE..))
-	   (,@(if WITH-SLOTS-SLOTS
-		`(with-slots ,WITH-SLOTS-SLOTS ,symbol
+         (defmethod copy-inner-class progn ((,symbol ,class-name)
+					    ..copy-object.. ..copy-htable..)
+           (declare (ignorable ..copy-object.. ..copy-htable..))
+	   (,@(if with-slots-slots
+		`(with-slots ,with-slots-slots ,symbol
                    ,@with-slots-slots ; avoid unused errors
                    )
 	        '(progn))
-	    (with-slot-copying (..COPY-OBJECT.. ..COPY-HTABLE..)
-	      ,@SLOTS-FORMS)))))))
+	    (with-slot-copying (..copy-object.. ..copy-htable..)
+	      ,@slots-forms)))))))
 
 (defun duplicate-class-forms-final-duplicate
-       (SYMBOL CLASS-NAME FINAL-DUPLICATE-FORMS COPY-FORMS?)
-  (when FINAL-DUPLICATE-FORMS
-    (list `(defmethod final-duplicate-class progn ((,SYMBOL ,CLASS-NAME))
-	     ,@FINAL-DUPLICATE-FORMS)
-	  (and COPY-FORMS?
-	       `(defmethod copy-final-class progn ((,SYMBOL ,CLASS-NAME))
-		  (final-duplicate-class ,SYMBOL))))))
+       (symbol class-name final-duplicate-forms copy-forms?)
+  (when final-duplicate-forms
+    (list `(defmethod final-duplicate-class progn ((,symbol ,class-name))
+	     ,@final-duplicate-forms)
+	  (and copy-forms?
+	       `(defmethod copy-final-class progn ((,symbol ,class-name))
+		  (final-duplicate-class ,symbol))))))
 
 ;;;
 ;;; 
 ;;;
-(defvar *DUPLICATE-CLASS-FORMS-COPY-FORMS?* t)
+(defvar *duplicate-class-forms-copy-forms?* t)
 (defmacro duplicator-methods
-	  ((CLASS-NAME
+	  ((class-name
 	     &key
 	     (symbol 'self)
-	     (COPY-FORMS? *DUPLICATE-CLASS-FORMS-COPY-FORMS?*))
-	   ALL-SLOTS SLOT-FORMS &optional FINAL-DUPLICATE-FORMS)
+	     (copy-forms? *duplicate-class-forms-copy-forms?*))
+	   all-slots slot-forms &optional final-duplicate-forms)
   
   `(progn
      (remove-duplicator-methods ',class-name)
-     ,(and COPY-FORMS?
-	   (duplicate-class-forms-copy symbol CLASS-NAME ALL-SLOTS SLOT-FORMS))
+     ,(and copy-forms?
+	   (duplicate-class-forms-copy symbol class-name all-slots slot-forms))
      ,@(duplicate-class-forms-final-duplicate
-	 symbol CLASS-NAME FINAL-DUPLICATE-FORMS COPY-FORMS?)))
+	 symbol class-name final-duplicate-forms copy-forms?)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; removing methods
@@ -504,10 +395,10 @@ duplicate-class-forms-final-duplicate
 
 (let ((x (make-list 10000)))
   (timeit (:report t) 
-          (copy-top-level x))
+          (copy-thing x))
   (let ((*copy-assume-no-circular-lists* t))
     (timeit (:report t) 
-          (copy-top-level x))))
+          (copy-thing x))))
 
 ;;; 0.2160 cpu seconds (0.2160 cpu seconds ignoring GC)
 ;;; 431,920 words consed
@@ -515,74 +406,3 @@ duplicate-class-forms-final-duplicate
 ;;; 80,000 words consed
 |#
 
-
-;;; ---------------------------------------------------------------------------
-;;; copy-template
-;;; suppose you have an object
-;;; ? (defclass foo ()
-;;;     ((test :accessor test :initform #'equal :initarg :test))) =>
-;;; #<STANDARD-CLASS FOO>
-;;; 
-;;; ? (setf *foo* (make-instance 'foo :test #'eql))
-;;;
-;;; ? (test *foo*) => #'eql 
-;;; 
-;;; Now you want to make another instance of foo that has the test as foo.
-;;; 
-;;; ? (setf *new-foo* (make-instance (type-of foo)))
-;;;
-;;; ? (test *new-foo*) => #'equal
-;;;
-;;; Wait, we wanted *new-foo* to have slot test to be #'eql.  This seems trival
-;;; for simple objects, but consider this from make-filtered-graph
-;;;
-;;; (make-graph (type-of old-graph)
-;;;              :vertex-test (vertex-test old-graph) 
-;;;              :vertex-key (vertex-key old-graph)
-;;;              :edge-test (edge-test old-graph)
-;;;              :edge-key (edge-key old-graph)
-;;;              :default-edge-type (default-edge-type old-graph)
-;;;              :default-edge-class (default-edge-class old-graph)
-;;;              :directed-edge-class (directed-edge-class old-graph)
-;;;              :undirected-edge-class (undirected-edge-class old-graph))))
-;;; Yuck!
-;;; 
-;;; So we offer copy-template as a temporary solution
-;;; ---------------------------------------------------------------------------
-
-(defmethod copy-template ((object standard-object))
-  (apply 
-   #'make-instance 
-   (type-of object) 
-   (loop 
-     with result = nil 
-     for (nil name nil initargs) in (mapcar (lambda (slot-value)
-                                              (slot-properties 
-                                               object slot-value))
-                                            (slot-names object)) do
-     (when initargs
-       (setf result (nconc result 
-                           (list (if (listp initargs)
-                                   (first initargs)
-                                   initargs) (slot-value object name)))))
-     finally (return result))))
-
-(defmethod make-instance-from-object-initargs ((object standard-object))
-  (apply 
-   #'make-instance 
-   (type-of object) 
-   (loop 
-     with result = nil 
-     for (nil name nil initargs) in (mapcar (lambda (slot-value)
-                                              (slot-properties  
-                                               object slot-value))
-                                            (slot-names object)) do
-     (when initargs
-       (setf result (nconc result 
-                           (list (if (listp initargs)
-                                   (first initargs)
-                                   initargs) (slot-value object name)))))
-     finally (return result))))
-
-;;;********************************************************************************
-;;; EOF

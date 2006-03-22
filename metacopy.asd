@@ -4,10 +4,10 @@
 
 (defsystem metacopy
   :version "0.1"
-  :author "BBN and EKSL"
+  :author "Originally by BBN, modified by EKSL and by Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style License"
-  :description "Common Lisp flexible shallow/deep copy mechanism"
+  :description "Flexible Common Lisp shallow/deep copy mechanism."
   :components ((:module "dev"
 		        :components ((:static-file "notes.text")
 				     

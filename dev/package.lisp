@@ -20,7 +20,8 @@
    #:make-instance-from-object-initargs
    #:duplicate-set
    #:duplicate-slots
-   #:duplicator-methods
    #:duplicate-cond-slots
 
-   #:copy-top-level))
+   ;; usual public interface
+   #:duplicator-methods
+   #:copy-thing))

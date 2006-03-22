@@ -2,7 +2,7 @@
 
 ;;; ---------------------------------------------------------------------------
 
-(defgeneric copy-top-level (thing)
+(defgeneric copy-thing (thing)
   (:documentation "Copy objects with aribtrarily complex substructure.
 Objects are kept track of in a HashTable, so only one copy is made of each.
 Things which are EQ in the original (i.e. objects, sublists, etc.) come out
