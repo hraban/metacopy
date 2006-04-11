@@ -378,7 +378,7 @@ duplicate-class-forms-final-duplicate
                           (if (atom slot)
                             (list slot slot)
                             slot)))
-    (setf copy-slots (ensure-list copy))
+    (setf copy-slots (if (consp copy) copy (list copy)))
     
     ;;?? make sure that set and copy don't overlap
     
