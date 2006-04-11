@@ -168,17 +168,21 @@
 
 (defmethod copy-inner ((original-list list) copy-list copy-htable)
   ;; this handles circular lists, but is slower and isn't cdr coded.
-  (cond ((not (null *copy-assume-no-circular-lists*))
-         (setf (car copy-list) 
-               (copy-one (first original-list) copy-htable)
-               (cdr copy-list)
-               (if (dotted-pair-p original-list)
-                 (copy-one (cdr original-list) copy-htable)
-                 (loop for x in (rest original-list) collect (copy-one x copy-htable)))))
-        (t
-         (unless (null original-list)
-           (setf (car copy-list) (copy-one (car original-list) copy-htable))
-           (setf (cdr copy-list) (copy-one (cdr original-list) copy-htable))))))
+  (flet ((dotted-pair-p (putative-pair)
+           (and (consp putative-pair)
+                (cdr putative-pair)
+                (not (consp (cdr putative-pair))))))
+    (cond ((not (null *copy-assume-no-circular-lists*))
+           (setf (car copy-list) 
+                 (copy-one (first original-list) copy-htable)
+                 (cdr copy-list)
+                 (if (dotted-pair-p original-list)
+                   (copy-one (cdr original-list) copy-htable)
+                   (loop for x in (rest original-list) collect (copy-one x copy-htable)))))
+          (t
+           (unless (null original-list)
+             (setf (car copy-list) (copy-one (car original-list) copy-htable))
+             (setf (cdr copy-list) (copy-one (cdr original-list) copy-htable)))))))
 
 ;;;********************************************************************************
 ;;; copy-able class objects.
@@ -370,7 +374,7 @@ duplicate-class-forms-final-duplicate
       (setf set (slot-names class)
             set-all nil))
     
-    (setf set-slots (loop for slot in (ensure-list set) collect
+    (setf set-slots (loop for slot in (if (consp set) set (list set)) collect
                           (if (atom slot)
                             (list slot slot)
                             slot)))

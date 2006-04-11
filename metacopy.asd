@@ -1,9 +1,9 @@
-
+(in-package common-lisp-user)
 (defpackage :metacopy-system (:use #:cl #:asdf))
 (in-package :metacopy-system)
 
 (defsystem metacopy
-  :version "0.1"
+  :version "0.2"
   :author "Originally by BBN, modified by EKSL and by Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style License"
@@ -20,5 +20,17 @@
                (:module "website"
                         :components ((:module "source"
                                               :components ((:static-file "index.lml"))))))
-  :depends-on (moptilities metatilities-base))
+  :in-order-to ((test-op (load-op metacopy-test)))
+  :perform (test-op :after (op c)
+                    (describe
+                     (funcall 
+                      (intern "RUN-TESTS" '#:lift) 
+                      :suite (intern 
+                              "METACOPY-TEST"
+                              '#:metacopy-test))))
+  :depends-on (moptilities))
 
+(defmethod operation-done-p 
+           ((o test-op)
+            (c (eql (find-system 'metacopy))))
+  (values nil))
