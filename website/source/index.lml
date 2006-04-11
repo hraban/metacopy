@@ -16,7 +16,7 @@
      ((:DIV :CLASS "system-description")
       (:H3 "What it is")
       (:P "Metacopy is a toolkit for specifying how to make copies of objects. Use defcopy-methods to describe the copying of slots and copy-thing to make copies. What could be easier?")
-      (:P "Metacopy relies on " (link :moptilities) " and the base layer of " (link :metatilities) ". There is " (link :tinaa) " documentation " (link :metacopy-tinaa :title "available") ".")
+      (:P "Metacopy relies on " (link :moptilities) ". There is " (link :tinaa) " documentation " (link :metacopy-tinaa :title "available") ".")
 
       ((:A :id "mailing-lists"))
       (:h3 "Mailing Lists")
@@ -31,8 +31,7 @@
       (:H3 "Where is it")
       (:P "A " (rw:link :darcs) " repository is available. You'll need " (rw:link :moptilities) " and " (link :metatilities) " too. The commands to get them are listed below:")
       (:PRE
-       "darcs get http://common-lisp.net/project/cl-containers/metatilities/darcs/metatilities
-darcs get http://common-lisp.net/project/cl-containers/moptilities/darcs/moptilities
+       "darcs get http://common-lisp.net/project/cl-containers/moptilities/darcs/moptilities
 darcs get http://common-lisp.net/project/metacopy/darcs/metacopy")
       (:P "Metacopy is " (rw:link :asdf-install :title "ASDF installable") ". Its CLiki home is right " (rw:link :metacopy-cliki :title "where") " you'd expect.")
       (:P "There's also a handy " (rw:link :metacopy-package :title "gzipped tar file") ".")
@@ -40,6 +39,10 @@ darcs get http://common-lisp.net/project/metacopy/darcs/metacopy")
       ((:A :id "news"))
       (:H3 "What is happening")
       ((:TABLE :CLASS "system-news") 
+       (:TR
+        (:TH "11 April 2006")
+        (:TD "Removed dependencies on metatilities; added a few simple tests (using " (link :lift) "."))
+       
        (:TR
         (:TH "22 March 2006")
         (:TD "Initial setup")))))
