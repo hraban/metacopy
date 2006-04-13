@@ -269,9 +269,12 @@
     (let ((slots-forms (loop for (form-kind first-form . rst) in slot-forms
 			     collecting (case form-kind
 					  (duplicate-set
-                                           (push first-form with-slots-slots)
-                                           (push first-form copied-slots)
-                                           `(copy-set-slot ,first-form ,@rst))
+                                           ;; sanity check, make sure we have something 
+                                           ;; to duplicate
+                                           (when first-form
+                                             (push first-form with-slots-slots)
+                                             (push first-form copied-slots)
+                                             `(copy-set-slot ,first-form ,@rst)))
 					  (duplicate-slots
                                            (push first-form copied-slots)
                                            (setf copied-slots (append rst copied-slots))
