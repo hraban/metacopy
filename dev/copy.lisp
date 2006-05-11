@@ -1,6 +1,6 @@
 ;;; -*- Syntax: Common-lisp; Package: metacopy -*-
 
-(in-package metacopy)
+(in-package #:metacopy)
 
 ;;; ---------------------------------------------------------------------------
 

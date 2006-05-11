@@ -1,4 +1,4 @@
-(in-package common-lisp-user)
+(in-package #:common-lisp-user)
 
 (defpackage #:metacopy
   (:use #:common-lisp #:moptilities)

@@ -1,4 +1,4 @@
-(in-package metacopy-test)
+(in-package #:metacopy-test)
 
 (deftestsuite metacopy-test () ())
 
