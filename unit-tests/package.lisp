@@ -1,4 +1,6 @@
-(in-package #:common-lisp-user)
+(cl:in-package #:metacopy-system)
 
-(defpackage #:metacopy-test
-  (:use #:common-lisp #:moptilities #:metacopy #:lift))
+(defpackage #.(metacopy-system:metacopy-test-package)
+  (:use #:common-lisp #:moptilities #:lift #.(if metacopy-system:*load-with-contextl*
+                                                 '#:metacopy-with-contextl
+                                                 '#:metacopy)))

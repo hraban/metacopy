@@ -1,6 +1,6 @@
 ;;; -*- Syntax: Common-lisp; Package: metacopy -*-
 
-(in-package #:metacopy)
+(in-package #.(metacopy-system:metacopy-package))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -8,10 +8,11 @@
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod copy-thing (original-thing) 
+(define-copy-method copy-thing (original-thing) 
   (copy-one original-thing (make-hash-table)))
 
-(let ((copy-htable (make-hash-table)))
+;; TODO delme, this is not thread safe this way
+#+nil(let ((copy-htable (make-hash-table)))
   (defmethod copy-thing (original-thing)
     (clrhash copy-htable)
     (copy-one original-thing copy-htable)))
@@ -29,36 +30,36 @@
 ;;;
 ;;;********************************************************************************
 
-(defmethod copy-thing ((original-thing symbol))
+(define-copy-method copy-thing ((original-thing symbol))
   original-thing)
 
-(defmethod copy-one ((original-symbol symbol) copy-htable)
+(define-copy-method copy-one ((original-symbol symbol) copy-htable)
   (declare (ignore copy-htable))
   original-symbol)
 
-(defmethod copy-thing ((original-thing number))
+(define-copy-method copy-thing ((original-thing number))
   original-thing)
 
-(defmethod copy-one ((original-number number) copy-htable)
+(define-copy-method copy-one ((original-number number) copy-htable)
   (declare (ignore copy-htable))
   original-number)
 
-(defmethod copy-thing ((original-thing function))
+(define-copy-method copy-thing ((original-thing function))
   original-thing)
 
-(defmethod copy-one ((original-function function) copy-htable)
+(define-copy-method copy-one ((original-function function) copy-htable)
   (declare (ignore copy-htable))
   original-function)
 
-(defmethod copy-thing ((original-thing character))
+(define-copy-method copy-thing ((original-thing character))
   original-thing)
 
-(defmethod copy-one ((orig character) copy-htable)
+(define-copy-method copy-one ((orig character) copy-htable)
   (declare (ignore copy-htable))
   orig)
 
 #+mcl-when-you-want-to-know
-(defmethod copy-one ((original-function ccl::compiled-lexical-closure) copy-htable)
+(define-copy-method copy-one ((original-function ccl::compiled-lexical-closure) copy-htable)
   (declare (ignore copy-htable))
   (warn "copying ~a" original-function)
   original-function)
@@ -80,7 +81,7 @@
 ;;;  1] Create a new, empty copy  (using COPY-SELF).
 ;;;  2] Shove it in the HashTable.
 ;;;  3] Setup its internal structure, as needed (using COPY-INNER).
-(defmethod copy-one (original-thing copy-htable)
+(define-copy-method copy-one (original-thing copy-htable)
   (multiple-value-bind (value found?) (gethash original-thing copy-htable)
     (or (and found? value)
 	(let ((copy-thing (copy-self original-thing)))
@@ -92,7 +93,7 @@
 ;;; ---------------------------------------------------------------------------
 
 ;; copies without worrying about shared structure
-(defmethod copy-one (original-thing (copy-htable (eql nil)))
+(define-copy-method copy-one (original-thing (copy-htable (eql nil)))
   (let ((copy-thing (copy-self original-thing)))
     (copy-inner original-thing copy-thing copy-htable)
     (copy-final original-thing copy-thing)
@@ -100,36 +101,36 @@
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod copy-self (self)
+(define-copy-method copy-self (self)
   (error "don't know how to copy ~s" self))
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod copy-inner (self copy-object copy-htable)
+(define-copy-method copy-inner (self copy-object copy-htable)
   "default is to do nothing."
   (declare (ignore self copy-object copy-htable))
   nil)
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod copy-final ((self t) (copy t))
+(define-copy-method copy-final ((self t) (copy t))
   "Default is to do nothing."
   nil)
 
 ;;; ---------------------------------------------------------------------------
 ;;; Strings
 
-(defmethod copy-self ((original string))
+(define-copy-method copy-self ((original string))
   (subseq original 0 (length original)))
 
 ;; define this so that array code below does not run for strings.
-(defmethod copy-inner ((original string) new-array copy-htable)
+(define-copy-method copy-inner ((original string) new-array copy-htable)
   (declare (ignore new-array copy-htable)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; arrays
 
-(defmethod copy-self ((original array))
+(define-copy-method copy-self ((original array))
   (let* ((array-dimensions (array-dimensions original))
          (adjustable (adjustable-array-p original))
          (type (array-element-type original))
@@ -140,7 +141,7 @@
                 :adjustable adjustable
                 :fill-pointer fp)))
 
-(defmethod copy-inner ((original array) new-array copy-htable)
+(define-copy-method copy-inner ((original array) new-array copy-htable)
   (loop for index from 0 below (apply #'* (array-dimensions original)) do
         (setf (row-major-aref new-array index) 
               (copy-one (row-major-aref original index) copy-htable))))
@@ -148,10 +149,10 @@
 ;;; ---------------------------------------------------------------------------
 ;;; hash tables
 
-(defmethod copy-self ((original hash-table))
+(define-copy-method copy-self ((original hash-table))
   (make-hash-table :test (hash-table-test original)))
 
-(defmethod copy-inner ((original-table hash-table) new-table copy-htable)
+(define-copy-method copy-inner ((original-table hash-table) new-table copy-htable)
   (maphash #'(lambda (key value)
                (setf (gethash 
                       (copy-one key copy-htable)
@@ -163,10 +164,10 @@
 ;;; Lists
 ;;;********************************************************************************
 
-(defmethod copy-self ((original-list list))
+(define-copy-method copy-self ((original-list list))
   (and original-list (cons nil nil)))
 
-(defmethod copy-inner ((original-list list) copy-list copy-htable)
+(define-copy-method copy-inner ((original-list list) copy-list copy-htable)
   ;; this handles circular lists, but is slower and isn't cdr coded.
   (flet ((dotted-pair-p (putative-pair)
            (and (consp putative-pair)
@@ -198,7 +199,7 @@
 
 (defvar *instance-for-copy?* nil)
 
-(defmethod copy-self ((self copyable-mixin))
+(define-copy-method copy-self ((self copyable-mixin))
   (copy-object self))
 
 (defun copy-object (self)
@@ -209,17 +210,17 @@
 (defmethod instance-made-for-copying-p ((object t))
   (eq object *instance-for-copy?*))
 
-(defmethod copy-inner-class progn ((original-object copyable-mixin) copy-list copy-htable)
+(define-copy-method copy-inner-class progn ((original-object copyable-mixin) copy-list copy-htable)
   (declare (ignore copy-list copy-htable))
   nil)
 
-(defmethod copy-inner ((original-object standard-object) copy-list copy-htable)
+(define-copy-method copy-inner ((original-object standard-object) copy-list copy-htable)
   (copy-inner-class original-object copy-list copy-htable))
 
-(defmethod copy-final-class progn ((original-object copyable-mixin) (copy t))
+(define-copy-method copy-final-class progn ((original-object copyable-mixin) (copy t))
   nil)
 
-(defmethod copy-final ((original-object copyable-mixin) (copy t))
+(define-copy-method copy-final ((original-object copyable-mixin) (copy t))
   (copy-final-class original-object copy))
 
 ;;;********************************************************************************
@@ -386,7 +387,7 @@ duplicate-class-forms-final-duplicate
     ;;?? make sure that set and copy don't overlap
     
     `(progn
-       (defmethod copy-self ((object ,class))
+       (define-copy-method copy-self ((object ,class))
          (copy-object object))
        (duplicator-methods 
         (,class)

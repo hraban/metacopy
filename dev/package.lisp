@@ -1,7 +1,9 @@
-(in-package #:common-lisp-user)
+(cl:in-package #:metacopy-system)
 
-(defpackage #:metacopy
-  (:use #:common-lisp #:moptilities)
+(defpackage #.(metacopy-system:metacopy-package)
+  (:use #:common-lisp #:moptilities #:metacopy-system #.(if metacopy-system:*load-with-contextl*
+                                                            '#:contextl
+                                                            (values)))
   (:export
    #:with-slot-copying
    #:copy-slot
@@ -22,6 +24,9 @@
    #:duplicate-slots
    #:duplicate-cond-slots
 
+   #:define-copy-protocol
+   #:define-copy-method
+   
    ;; usual public interface
    #:duplicator-methods
    #:copy-thing))
