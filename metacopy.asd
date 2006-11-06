@@ -1,4 +1,4 @@
-(in-package common-lisp-user)
+(in-package :common-lisp-user)
 (defpackage #:metacopy-system
   (:use #:cl #:asdf)
   (:export
@@ -39,15 +39,26 @@
 (defclass metacopy-file (cl-source-file)
   ())
 
-(defmethod output-files :around ((operation operation) (component metacopy-file)) 
-  (let* ((paths (call-next-method))
-         (file (first paths)))
-    (assert (<= (length paths) 1))
-    (if paths
-        (list (if *load-with-contextl*
-                  (merge-pathnames (concatenate 'string (pathname-name file) "-contextl") file)
-                  file))
-        nil)))
+(defclass metacopy-file-with-contextl (metacopy-file)
+  ())
+
+(defmacro with-contextl (&body body)
+  `(let ((*load-with-contextl* t)
+         (*features* (cons :with-contextl *features*)))
+    ,@body))
+
+(defmethod perform :around (o (c metacopy-file-with-contextl))
+  (with-contextl
+    (call-next-method)))
+
+(defmethod output-files :around ((operation operation) (component metacopy-file-with-contextl)) 
+  (with-contextl
+    (let* ((paths (call-next-method))
+           (file (first paths)))
+      (assert (<= (length paths) 1))
+      (if paths
+          (list (merge-pathnames (concatenate 'string (pathname-name file) "-contextl") file))
+          nil))))
 
 (defsystem metacopy
   :version "0.2"
@@ -55,12 +66,13 @@
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style License"
   :description "Flexible Common Lisp shallow/deep copy mechanism."
+  :default-component-class metacopy-file
   :components ((:module "dev"
                 :components ((:static-file "notes.text")
-                             (:metacopy-file "package")
-                             (:metacopy-file "contextl-integration" :depends-on ("package"))
-                             (:metacopy-file "api" :depends-on ("contextl-integration" "package"))
-                             (:metacopy-file "copy" :depends-on ("api" "package"))))
+                             (:file "package")
+                             (:file "contextl-integration" :depends-on ("package"))
+                             (:file "api" :depends-on ("contextl-integration" "package"))
+                             (:file "copy" :depends-on ("api" "package"))))
                (:module "website"
                 :components ((:module "source"
                               :components ((:static-file "index.lml"))))))
@@ -69,7 +81,7 @@
 (defmethod operation-done-p ((o test-op) (c (eql (find-system 'metacopy))))
   nil)
 
-(defmethod operate ((o test-op) (c (eql (find-system 'metacopy))) &key &allow-other-keys)
+(defmethod perform ((o test-op) (c (eql (find-system 'metacopy))))
   (operate 'load-op '#:metacopy-test)
   (describe
    (eval (read-from-string
@@ -81,9 +93,10 @@
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style license"
   :description "Test for metacopy"
+  :default-component-class metacopy-file
   :components ((:module "unit-tests"
-                        :components ((:metacopy-file "package")
-                                     (:metacopy-file "tests" :depends-on ("package"))))
+                        :components ((:file "package")
+                                     (:file "tests" :depends-on ("package"))))
                (:module "dev"
                         :components ((:static-file "notes.text"))))
   :depends-on (metacopy lift))
@@ -91,17 +104,18 @@
 (defmethod operation-done-p ((o test-op) (c (eql (find-system 'metacopy-test))))
   nil)
 
-;;; and the system connection that will load the entire metacopy code again into another package, :metacopy-with-contextl
+;;; and the system connection that will load the entire metacopy code again into another package called :metacopy-with-contextl
 (defsystem-connection metacopy-with-contextl
   :requires (metacopy contextl)
+  :default-component-class metacopy-file-with-contextl
   ;; The contents here is (an unfortunate) copy-paste from the metacopy system.
   :components ((:module "dev"
-                :components ((:metacopy-file "package")
-                             (:metacopy-file "contextl-integration" :depends-on ("package"))
-                             (:metacopy-file "api" :depends-on ("contextl-integration" "package"))
-                             (:metacopy-file "copy" :depends-on ("api" "package"))))))
+                :components ((:file "package")
+                             (:file "contextl-integration" :depends-on ("package"))
+                             (:file "api" :depends-on ("contextl-integration" "package"))
+                             (:file "copy" :depends-on ("api" "package"))))))
 
-(defmethod operate ((o test-op) (c (eql (find-system 'metacopy-with-contextl))) &key &allow-other-keys)
+(defmethod perform ((o test-op) (c (eql (find-system 'metacopy-with-contextl))))
   (operate 'load-op '#:metacopy-test-with-contextl)
   (describe
    (eval (read-from-string
@@ -109,26 +123,15 @@
 
 (defsystem-connection metacopy-test-with-contextl
   :requires (metacopy-test metacopy-with-contextl lift)
+  :default-component-class metacopy-file-with-contextl
   ;; The contents here is (an unfortunate) copy-paste from the metacopy-test system.
   :components ((:module "unit-tests"
-                        :components ((:metacopy-file "package")
-                                     (:metacopy-file "tests" :depends-on ("package"))))))
+                        :components ((:file "package")
+                                     (:file "tests" :depends-on ("package"))))))
 
 (defmethod operation-done-p ((o test-op) (c (eql (find-system 'metacopy-with-contextl))))
   nil)
 
-(defmacro with-contextl (&body body)
-  `(let ((*load-with-contextl* t)
-         (*features* (cons :with-contextl *features*)))
-    ,@body))
-
-(defmethod operate :around ((o t) (c (eql (find-system 'metacopy-with-contextl))) &key &allow-other-keys)
-  (with-contextl
-    (call-next-method)))
-
-(defmethod operate :around ((o t) (c (eql (find-system 'metacopy-test-with-contextl))) &key &allow-other-keys)
-  (with-contextl
-    (call-next-method)))
 
 
 
