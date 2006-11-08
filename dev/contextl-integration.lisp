@@ -22,12 +22,12 @@
           (copy-thing thing)))))
 
   (defmacro define-copy-function (name args &rest options)
-    "A defgeneric, with or without contextl."
+    "A define-layered-function."
     `(define-layered-function ,name ,args
       ,@options))
 
   (defmacro define-copy-method (name &rest body)
-    "A defmethod, with or without contextl."
+    "Ends up as a define-layered-method with special support for copy-specific syntax features."
     (let ((protocol)
           (qualifiers)
           (args))
