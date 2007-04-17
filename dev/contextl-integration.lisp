@@ -8,7 +8,7 @@
   (defparameter *copy-protocols* nil "Holds a list of copy protocol names")
 
   (defun calculate-layer-name-from-protocol-name (name)
-    (intern (concatenate 'string "%CPL-" (string name))))
+    (intern (concatenate 'string "%CPL-" (string name)) (symbol-package name)))
 
   (defmacro define-copy-protocol (name &optional super-protocols &rest options)
     "Define a copy protocol, which directly maps to a ContextL layer."
