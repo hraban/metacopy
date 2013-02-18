@@ -16,12 +16,10 @@
 
 (defmethod output-files :around ((operation operation) (component metacopy-file-with-contextl)) 
   (with-contextl
-    (let* ((paths (call-next-method))
-           (file (first paths)))
-      (assert (<= (length paths) 1))
-      (if paths
-          (list (merge-pathnames (concatenate 'string (pathname-name file) "-contextl") file))
-          nil))))
+    (let ((paths (call-next-method)))
+      (mapcar (lambda (path)
+                (merge-pathnames (concatenate 'string (pathname-name path) "-contextl") path))
+              paths))))
 
 ;;; and the system that will load the entire metacopy code again into another package called :metacopy-with-contextl
 (defsystem metacopy-with-contextl
