@@ -18,7 +18,8 @@
   (with-contextl
     (let ((paths (call-next-method)))
       (mapcar (lambda (path)
-                (merge-pathnames (concatenate 'string (pathname-name path) "-contextl") path))
+                (make-pathname :name (concatenate 'string (pathname-name path) "-contextl")
+                               :defaults path))
               paths))))
 
 ;;; and the system that will load the entire metacopy code again into another package called :metacopy-with-contextl
