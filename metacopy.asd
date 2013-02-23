@@ -25,17 +25,12 @@
       '#:metacopy-test-with-contextl
       '#:metacopy-test))
 
-;;; define the magic metacopy-file that will emit NAME.fasl and NAME-contextl.fasl
-(defclass metacopy-file (cl-source-file)
-  ())
-
 (defsystem metacopy
   :version "0.2"
   :author "Originally by BBN, modified by EKSL and by Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style License"
   :description "Flexible Common Lisp shallow/deep copy mechanism."
-  :default-component-class metacopy-file
   :components ((:module "dev"
                 :components ((:static-file "notes.text")
                              (:file "package")
@@ -46,9 +41,6 @@
                 :components ((:module "source"
                               :components ((:static-file "index.lml"))))))
   :depends-on (moptilities))
-
-(defmethod operation-done-p ((o test-op) (c (eql (find-system 'metacopy))))
-  nil)
 
 (defmethod perform ((o test-op) (c (eql (find-system 'metacopy))))
   (operate 'load-op '#:metacopy-test)
@@ -62,13 +54,9 @@
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style license"
   :description "Test for metacopy"
-  :default-component-class metacopy-file
   :components ((:module "unit-tests"
                         :components ((:file "package")
                                      (:file "tests" :depends-on ("package"))))
                (:module "dev"
                         :components ((:static-file "notes.text"))))
   :depends-on (metacopy lift))
-
-(defmethod operation-done-p ((o test-op) (c (eql (find-system 'metacopy-test))))
-  nil)

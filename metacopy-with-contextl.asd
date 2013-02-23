@@ -2,7 +2,7 @@
 
 (in-package #:metacopy-system)
 
-(defclass metacopy-file-with-contextl (metacopy-file)
+(defclass metacopy-file-with-contextl (cl-source-file)
   ())
 
 (defmacro with-contextl (&body body)
