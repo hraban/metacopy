@@ -2,7 +2,7 @@
 
 (in-package #:metacopy-system)
 
-(defclass metacopy-file-with-contextl (cl-source-file)
+(defclass metacopy-file-with-contextl (metacopy-file)
   ())
 
 (defmacro with-contextl (&body body)
@@ -14,13 +14,14 @@
   (with-contextl
     (call-next-method)))
 
-(defmethod output-files :around ((operation operation) (component metacopy-file-with-contextl)) 
+(defmethod output-files :around ((operation operation) (component metacopy-file-with-contextl))
   (with-contextl
-    (let ((paths (call-next-method)))
-      (mapcar (lambda (path)
-                (make-pathname :name (concatenate 'string (pathname-name path) "-contextl")
-                               :defaults path))
-              paths))))
+    (let* ((paths (call-next-method))
+           (file (first paths)))
+      (when paths
+        (setf paths (remove-if (lambda (s) (string= (asdf/lisp-build:warnings-file-type) (pathname-type s))) paths))
+        (assert (<= (length paths) 1))
+        (list (merge-pathnames (concatenate 'string (pathname-name file) "-contextl") file))))))
 
 ;;; and the system that will load the entire metacopy code again into another package called :metacopy-with-contextl
 (defsystem metacopy-with-contextl
