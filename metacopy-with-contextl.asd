@@ -2,7 +2,7 @@
 
 (in-package #:metacopy-system)
 
-(defclass metacopy-file-with-contextl (metacopy-file)
+(defclass metacopy-file-with-contextl (cl-source-file)
   ())
 
 (defmacro with-contextl (&body body)
@@ -24,29 +24,25 @@
         (list (merge-pathnames (concatenate 'string (pathname-name file) "-contextl") file))))))
 
 ;;; and the system that will load the entire metacopy code again into another package called :metacopy-with-contextl
-(defsystem metacopy-with-contextl
-  :depends-on (metacopy contextl)
+(defsystem "metacopy-with-contextl"
+  :depends-on ("metacopy" "contextl")
   :default-component-class metacopy-file-with-contextl
   ;; The contents here is (an unfortunate) copy-paste from the metacopy system.
   :components ((:module "dev"
                 :components ((:file "package")
                              (:file "contextl-integration" :depends-on ("package"))
                              (:file "api" :depends-on ("contextl-integration" "package"))
-                             (:file "copy" :depends-on ("api" "package"))))))
+                             (:file "copy" :depends-on ("api" "package")))))
+  :in-order-to ((test-op (test-op "metacopy-with-contextl/test"))))
 
-(defmethod perform ((o test-op) (c (eql (find-system 'metacopy-with-contextl))))
-  (operate 'load-op '#:metacopy-test-with-contextl)
-  (describe
-   (eval (read-from-string
-          "(lift:run-tests :suite 'metacopy-test-with-contextl::metacopy-test)"))))
-
-(defsystem metacopy-test-with-contextl
-  :depends-on (metacopy-test metacopy-with-contextl lift)
+(defsystem "metacopy-with-contextl/test"
+  :depends-on ("metacopy/test" "metacopy-with-contextl" "lift")
   :default-component-class metacopy-file-with-contextl
   ;; The contents here is (an unfortunate) copy-paste from the metacopy-test system.
   :components ((:module "unit-tests"
                         :components ((:file "package")
-                                     (:file "tests" :depends-on ("package"))))))
-
-(defmethod operation-done-p ((o test-op) (c (eql (find-system 'metacopy-with-contextl))))
-  nil)
+                                     (:file "tests" :depends-on ("package")))))
+  :perform (test-op (o c)
+             (describe
+              (eval (read-from-string
+                     "(lift:run-tests :suite 'metacopy-test-with-contextl::metacopy-test)")))))

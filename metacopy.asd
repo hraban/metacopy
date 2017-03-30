@@ -25,7 +25,7 @@
       '#:metacopy-test-with-contextl
       '#:metacopy-test))
 
-(defsystem metacopy
+(defsystem "metacopy"
   :version "0.2"
   :author "Originally by BBN, modified by EKSL and by Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
@@ -40,15 +40,10 @@
                (:module "website"
                 :components ((:module "source"
                               :components ((:static-file "index.lml"))))))
-  :depends-on (moptilities))
+  :depends-on ("moptilities")
+  :in-order-to ((test-op (test-op "metacopy/test"))))
 
-(defmethod perform ((o test-op) (c (eql (find-system 'metacopy))))
-  (operate 'load-op '#:metacopy-test)
-  (describe
-   (eval (read-from-string
-          "(lift:run-tests :suite 'metacopy-test::metacopy-test)"))))
-
-(defsystem metacopy-test
+(defsystem "metacopy/test"
   :version "0.1"
   :author "Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
@@ -59,4 +54,7 @@
                                      (:file "tests" :depends-on ("package"))))
                (:module "dev"
                         :components ((:static-file "notes.text"))))
-  :depends-on (metacopy lift))
+  :depends-on ("metacopy" "lift")
+  :perform (test-op (o c)
+             (describe
+              (eval (read-from-string "(lift:run-tests :suite 'metacopy-test::metacopy-test)")))))
