@@ -16,12 +16,16 @@
 
 (defmethod output-files :around ((operation operation) (component metacopy-file-with-contextl))
   (with-contextl
-    (let* ((paths (call-next-method))
-           (file (first paths)))
-      (when paths
-        (setf paths (remove-if (lambda (s) (string= (asdf/lisp-build:warnings-file-type) (pathname-type s))) paths))
-        (assert (<= (length paths) 1))
-        (list (merge-pathnames (concatenate 'string (pathname-name file) "-contextl") file))))))
+    (let ((paths (call-next-method)))
+      ;; Any output files also get -contextl added. This used to filter out any
+      ;; “warnings file” (cf. uiop:*warnings-file-type*), but that check has
+      ;; been removed because it seems to cause more trouble than it is
+      ;; worth. If there is a problem arising from the renaming of warning
+      ;; files, this is where to restore the filter.
+      (mapcar (lambda (path)
+                (make-pathname :name (concatenate 'string (pathname-name path) "-contextl")
+                               :defaults path))
+              paths))))
 
 ;;; and the system that will load the entire metacopy code again into another package called :metacopy-with-contextl
 (defsystem "metacopy-with-contextl"
